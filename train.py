@@ -1,37 +1,64 @@
-import numpy as np
-from env.trading_env import TradingEnv
-from ppo.actor import Actor
-from ppo.critic import Critic
-from ppo.ppo_agent import PPOAgent
-from ppo.utils import RolloutBuffer
+"""
+Basic training entrypoint: run PPO on the SingleAssetEnv using SPY data.
 
-def main():
-    prices = np.random.randn(100).cumsum() + 100
-    env = TradingEnv(prices)
+This script is intentionally simple; more complex experiments live under
+`experiments/`.
+"""
 
-    actor = Actor(obs_dim=1, act_dim=3)
-    critic = Critic(obs_dim=1)
-    agent = PPOAgent(actor, critic, config={"dummy": True})
+from __future__ import annotations
 
-    buffer = RolloutBuffer()
+from pathlib import Path
 
-    obs = env.reset()
-    for _ in range(10):
-        action, logp = agent.select_action(obs)
-        next_obs, reward, done, _ = env.step(action)
+from envs.single_asset_env import SingleAssetEnv
+from features.data_loader import load_price_data, train_test_split_by_date
+from features.state_builders import make_simple_features
+from ppo.ppo_agent import PPOAgent, PPOConfig
+from ppo.trainer import train_ppo
 
-        buffer.obs.append(obs)
-        buffer.actions.append(action)
-        buffer.log_probs.append(logp)
-        buffer.rewards.append(reward)
-        buffer.dones.append(done)
 
-        obs = next_obs
-        if done:
-            break
+def main() -> None:
+    # Load data and build simple features.
+    prices = load_price_data("SPY", start="2010-01-01", end="2020-01-01")
+    train_prices, _ = train_test_split_by_date(prices, "2017-12-31")
+    train_features = make_simple_features(train_prices)
 
-    # Placeholder training call
-    agent.update(buffer)
+    env = SingleAssetEnv(
+        prices_df=train_prices,
+        features_df=train_features,
+        initial_cash=1.0,
+    )
+
+    state = env.reset()
+    state_dim = state.shape[0]
+    action_dim = env.action_space_n
+
+    # Default PPO configuration for basic experiments.
+    config = PPOConfig(
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_eps=0.2,
+        entropy_coef=0.01,
+        value_coef=0.5,
+        lr=3e-4,
+        max_grad_norm=0.5,
+        update_epochs=10,
+        minibatch_size=64,
+        steps_per_epoch=1024,
+        epochs=10,
+        log_interval=1,
+    )
+    print("Using PPOConfig:", config)
+    agent = PPOAgent(state_dim=state_dim, action_dim=action_dim, config=config)
+
+    # Optional: save logs next to this script.
+    log_path = Path("ppo_train_logs.json")
+    metrics = train_ppo(env, agent, config, log_path=str(log_path))
+
+    final_metrics = {k: v[-1] for k, v in metrics.items() if v}
+    print("Final epoch metrics:", final_metrics)
+    print(f"Saved training logs to {log_path.resolve()}")
+
 
 if __name__ == "__main__":
     main()
+

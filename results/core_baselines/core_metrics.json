@@ -1,0 +1,20 @@
+{
+  "PPO": {
+    "total_return": -0.41288944978914954,
+    "annualized_return": -0.13096964068842087,
+    "sharpe": -0.5684428180243006,
+    "max_drawdown": 0.5966246734963959
+  },
+  "BuyAndHold": {
+    "total_return": 0.39221864738804335,
+    "annualized_return": 0.09114142086560673,
+    "sharpe": 0.3955778289018755,
+    "max_drawdown": 0.3371724209471978
+  },
+  "MACrossover": {
+    "total_return": 0.288679419183137,
+    "annualized_return": 0.06913859961798785,
+    "sharpe": 0.5246743467023606,
+    "max_drawdown": 0.2888699012411976
+  }
+}
