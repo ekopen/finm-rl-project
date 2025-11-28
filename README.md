@@ -1,41 +1,404 @@
-## Project Timeline & Outline
+## FINM RL Trading Sandbox – README
 
-### **Nov 25 – Dec 1 (Thanksgiving Week)**
-- Set up repo, folders, and shared coding conventions.
-- Agree on env API, PPO config format, and logging format.
-- Implement single-asset trading environment + simple state.
-- Implement PPO skeleton (actor–critic, GAE, clipped loss).
-- Implement baselines (buy-and-hold, MA crossover).
-- Add basic metrics and equity-curve plotting.
-- Add reward shaping options (risk penalty, transaction costs).
-- Expose PPO hyperparams (clip ε, entropy bonus, γ, λ).
-- Run first small experiments: reward variants + a couple PPO settings.
-- Save initial results and quick plots.
+### 1. Project description & scope
 
-### **Dec 2 – Dec 6**
-- Add richer state variants (more indicators, market context).
-- Add regime labeling (bull/bear, low/high vol) and train/test splits.
-- Run experiments:
-  - Simple vs rich state,
-  - Train on period A, test on period B.
-- Generate plots/tables for these comparisons.
-- *(Optional)* Implement pairs-trading env (spread, z-score state).
-- *(Optional)* Run PPO on pairs env; compare to single-asset setup.
-- Finalize key experiments:
-  - Reward shaping,
-  - PPO hyperparams,
-  - State/env variants,
-  - PPO vs baselines.
-- Choose “best” runs to feature.
+This repo is a **research-style trading sandbox** that frames single-asset trading as a **reinforcement learning (RL)** problem and uses **PPO (Proximal Policy Optimization)** with an actor–critic architecture.
 
-### **Dec 7 – Dec 8**
-- Clean up code/notebooks; organize results by experiment.
-- Create final figures (equity curves, ablation plots, summary tables).
-- Draft and refine slide deck + main narrative.
+The goals are:
 
-### **Dec 9**
-- Practice presentation.
-- Tweak slides, clarify talking points.
+- **Model PPO-driven trading**:
+  - Single asset (e.g. SPY) with discrete actions {short, flat, long}.
+  - PPO agent learns a policy on historical data.
+- **Compare against simple baselines**:
+  - Buy-and-hold.
+  - Moving-average crossover.
+- **Study design choices**:
+  - PPO hyperparameters: clip ε, entropy bonus, γ, GAE λ, etc.
+  - State representation: simple vs (later) rich features, env variants.
+  - (Later) reward shaping: transaction costs, risk penalties.
+  - (Later) regime behavior: bull vs bear, high vs low volatility.
 
-### **Dec 10**
-- Final presentation.
+The end product is a set of **scripts and logs** you can use to generate plots and tables for a short presentation on:
+- When PPO-style RL helps,
+- How sensitive it is to hyperparameters and environment design,
+- How its behavior compares to intuitive baselines.
+
+---
+
+### 2. Implementation checklist
+
+#### 2.1 Implemented
+
+- **Data loading**
+  - `features/data_loader.py`:
+    - `load_price_data(ticker, start, end, interval)`:
+      - Uses `yfinance` via `data/data_loader.fetch_single_asset`.
+      - Ensures:
+        - Lowercase columns: `open, high, low, close, volume`.
+        - Flattened columns if yfinance returns MultiIndex (Price, Ticker).
+        - Sorted `DatetimeIndex`.
+    - `train_test_split_by_date(df, train_end_date)`:
+      - Splits any OHLC/feature DataFrame into train/test by date.
+
+- **Feature construction**
+  - `features/state_builders.py`:
+    - `make_simple_features(df, window=20)`:
+      - Uses lowercase `close` column.
+      - Adds:
+        - `ret`: daily returns.
+        - `ma`: rolling mean of `close` over `window`.
+        - `vol`: rolling std of `ret` over `window`.
+      - Returns augmented DataFrame.
+
+- **Environment**
+  - `envs/single_asset_env.py`:
+    - `SingleAssetEnv(prices_df, features_df, initial_cash=1.0, config=None)`:
+      - Uses `prices_df["close"]` and `features_df[["ret","ma","vol"]]`.
+      - Discrete actions: 0=short, 1=flat, 2=long.
+      - Reward = position × daily price return.
+      - Maintains `portfolio_value` and returns `info["portfolio_value"]`.
+    - Methods:
+      - `reset()` → initial state (features + position).
+      - `step(action)` → `(next_state, reward, done, info)`.
+
+- **PPO components**
+  - `ppo/models.py`:
+    - `ActorCritic(obs_dim, act_dim)`:
+      - Wraps `Actor` and `Critic` in `ppo/actor.py` and `ppo/critic.py`.
+      - `forward(obs)` → `(policy_out, values)`:
+        - `policy_out`: action probabilities (for `Categorical`).
+        - `values`: state values (1D tensor).
+  - `ppo/ppo_agent.py`:
+    - `PPOConfig` dataclass:
+      - `gamma`, `gae_lambda`, `clip_eps`, `entropy_coef`, `value_coef`,
+        `lr`, `max_grad_norm`, `update_epochs`, `minibatch_size`,
+        `steps_per_epoch`, `epochs`, `log_interval`, `device`.
+    - `RolloutBatch` dataclass: tensors for `obs, actions, log_probs, rewards, dones, values, last_value`.
+    - `PPOAgent(state_dim, action_dim, config)`:
+      - `act(state)` → `(action, log_prob, value)` for a single numpy state.
+      - `value(state)` → scalar V(s).
+      - `evaluate(states, actions)` → `(log_probs, entropy, values)`.
+      - `compute_gae(...)` → advantages + returns (GAE(γ, λ)).
+      - `update(rollout)`:
+        - Normalizes advantages, runs multi-epoch PPO update over minibatches.
+        - Uses clipped surrogate loss, value loss, entropy bonus, grad clipping.
+        - Returns summary stats dict.
+
+  - `ppo/trainer.py`:
+    - `collect_rollout(env, agent, num_steps)`:
+      - Collects `num_steps` transitions, resetting env on `done`.
+      - Builds a `RolloutBatch` with bootstrapped `last_value`.
+    - `train_ppo(env, agent, config, log_path=None)`:
+      - For each epoch:
+        - Calls `collect_rollout`.
+        - Calls `agent.update(...)`.
+        - Logs metrics: mean reward, policy/value loss, entropy, approx KL.
+      - Optionally saves metrics dict as JSON if `log_path` provided.
+
+  - `ppo/eval_utils.py`:
+    - `run_policy_episode(env, agent, num_steps=None)`:
+      - Runs a single test episode (or max `num_steps`) with PPOAgent.
+      - Returns a numpy equity curve based on `info["portfolio_value"]`.
+
+- **Baselines**
+  - `baselines/buy_and_hold.py`:
+    - `buy_and_hold(prices)` → final PnL.
+    - `run_buy_and_hold(df, initial_cash=1.0)`:
+      - Uses `df["close"]`/`"Close"`.
+      - Computes daily returns and returns full equity curve.
+  - `baselines/ma_crossover.py`:
+    - `run_ma_crossover(df, fast=20, slow=50, initial_cash=1.0)`:
+      - Builds a clean DataFrame with `close`, `fast`, `slow` MAs.
+      - Drops warmup NaNs.
+      - Position: 1 when `fast > slow`, 0 otherwise.
+      - Returns `(equity, index)`.
+
+- **Evaluation utilities**
+  - `eval/metrics.py`:
+    - `compute_total_return(equity)`
+    - `compute_annualized_return(equity, periods_per_year)`
+    - `compute_volatility(equity, periods_per_year)`
+    - `compute_sharpe(equity, rf=0.0, periods_per_year=252)`
+    - `compute_max_drawdown(equity)`
+    - `compute_hit_rate(positions, returns)`
+  - `eval/plotting.py`:
+    - `plot_equity_curves(curves_dict, dates=None, out_path=None)`
+    - `plot_price_with_positions(price, positions, out_path=None)`
+  - `eval/summarize.py`:
+    - `summarize_runs(run_payloads, metric_key="test_metrics") -> DataFrame`.
+
+- **Experiment helpers**
+  - `experiments/common.py`:
+    - `load_spy_splits()` → `(train_df, val_df, test_df)` for SPY.
+    - `make_single_asset_env(prices_df)` → `SingleAssetEnv`.
+    - `make_base_config(**overrides)` → common `PPOConfig`.
+    - `make_results_dir(exp_name)` → `results/<exp_name>/`.
+    - `train_env_with_config(env, config, log_path=None)` → trained `PPOAgent`.
+
+- **Experiment scripts**
+  - `experiments/exp_core_baselines.py`:
+    - Trains PPO on train period, evaluates on test; compares to:
+      - Buy-and-hold.
+      - MA crossover.
+    - Saves:
+      - `results/core_baselines/core_metrics.json`
+      - `results/core_baselines/core_equity.png`.
+  - `experiments/exp_ppo_hyperparams.py`:
+    - Sweeps several `PPOConfig` variants (clip/entropy/gamma/λ).
+    - For each:
+      - Trains PPO on train env.
+      - Evaluates on test env (equity curve).
+      - Computes test metrics.
+      - Saves per-run JSON + equity plot.
+    - Writes multi-run summaries (JSON + CSV) and prints a table.
+  - `experiments/exp_reward_shaping.py`:
+    - Scaffold: loops over shaping configs (`no_shaping`, `high_cost`, `risk_penalty`).
+    - Currently only logs and trains PPO; env does not yet use the shaping parameters.
+    - Saves metrics + equity plot per config.
+  - `experiments/exp_states_envs.py`:
+    - Scaffold to compare:
+      - `single_simple` (implemented).
+      - `single_rich`, `pairs_simple` (placeholders).
+    - For `single_simple`, trains PPO and evaluates test equity + metrics.
+  - `experiments/exp_regimes.py`:
+    - Trains PPO on train period, evaluates overall metrics on test.
+    - Placeholder TODOs for future regime-splitting once `features.regimes` exists.
+
+- **Top-level training entrypoint**
+  - `train.py`:
+    - Loads SPY, builds train env, sets explicit `PPOConfig`, prints it.
+    - Trains PPO and writes `ppo_train_logs.json` + prints final metrics.
+
+---
+
+#### 2.2 Not yet implemented / partially implemented
+
+- **Reward shaping in env**
+  - `SingleAssetEnv` does **not yet**:
+    - Apply transaction costs,
+    - Apply risk penalties,
+    - Apply drawdown penalties.
+  - `exp_reward_shaping.py` is ready but currently treats shaping configs only as logged metadata.
+
+- **Rich state & multi-envs**
+  - `make_rich_features(df)` – stubbed in `features/state_builders.py`.
+  - `PairsEnv`, multi-asset env – not yet implemented.
+  - `exp_states_envs.py` has TODO configs: `single_rich`, `pairs_simple`.
+
+- **Regime labeling**
+  - `features/regimes.py` functions `label_bull_bear` and `label_volatility` are stubs.
+  - `exp_regimes.py` currently only computes overall metrics; regime-split metrics are TODO.
+
+---
+
+#### 2.3 Checklist of what still needs to be done
+
+1. **Reward shaping**
+   - Extend `SingleAssetEnv` to include:
+     - `transaction_cost` per position change.
+     - `lambda_risk` penalizing volatility or other risk measures.
+     - (Optionally) `lambda_dd` penalizing drawdown increments.
+   - Wire these into `exp_reward_shaping.py` by passing knobs into the env constructor and re-running experiments.
+
+2. **Rich state + new envs**
+   - Implement `make_rich_features(df)` with:
+     - Multi-horizon returns (5d, 20d, 60d),
+     - Multi-horizon vol,
+     - Volume z-score, etc.
+   - Create `PairsEnv` and (optionally) multi-asset envs.
+   - Extend `exp_states_envs.py` to run:
+     - `single_rich`,
+     - `pairs_simple`,
+     - Possibly additional variants.
+
+3. **Regime labeling and regime experiments**
+   - Implement in `features/regimes.py`:
+     - `label_bull_bear(df, ma_window)` → bull/bear labels.
+     - `label_volatility(df, window, quantile)` → high/low vol labels.
+   - Extend `exp_regimes.py` to:
+     - Label test dates,
+     - Re-compute metrics per regime (bull vs bear, high vs low vol),
+     - Save regime-split tables and plots.
+
+4. **Analysis notebooks**
+   - Create notebooks under `notebooks/` to:
+     - Load results from `results/`,
+     - Plot training curves and equity curves,
+     - Build summary tables for slides.
+
+---
+
+### 3. Modules and how they fit together
+
+At a high level:
+
+- **Data → Features → Env → PPO → Experiments → Results**
+
+1. **Data & features**
+   - `data/data_loader.py`: raw yfinance download.
+   - `features/data_loader.py`: high-level wrapper:
+     - Single ticker, clean schema, date handling.
+   - `features/state_builders.py`: transforms price DataFrames into feature DataFrames.
+
+2. **Environment**
+   - `envs/single_asset_env.py`: converts prices + features → RL environment:
+     - State: `[ret, ma, vol, position]`.
+     - Action: discrete {short, flat, long}.
+     - Reward: per-step PnL.
+
+3. **PPO implementation**
+   - `ppo/models.py`: actor–critic NN container.
+   - `ppo/ppo_agent.py`: PPOConfig, RolloutBatch, PPOAgent implementing:
+     - Action sampling,
+     - GAE,
+     - PPO update.
+   - `ppo/trainer.py`: generic training loop that:
+     - Collects rollouts,
+     - Calls `update(...)`,
+     - Logs metrics.
+   - `ppo/eval_utils.py`: converts a trained agent + env into an equity curve.
+
+4. **Baselines**
+   - `baselines/buy_and_hold.py` and `baselines/ma_crossover.py`:
+     - Provide equities for simple, interpretable strategies.
+
+5. **Evaluation**
+   - `eval/metrics.py`: canonical way to compute returns, Sharpe, drawdown, etc., from equity curves and positions.
+   - `eval/plotting.py`: standard equity plots and price-with-positions visualization.
+   - `eval/summarize.py`: convert multiple run payloads into a DataFrame summary.
+
+6. **Experiments**
+   - `experiments/common.py`: shared logic for all experiment scripts (data splits, config, env construction).
+   - `exp_core_baselines.py`: core benchmark — PPO vs buy-and-hold vs MA crossover.
+   - `exp_ppo_hyperparams.py`: PPO hyperparameter sweeps, with summary tables.
+   - `exp_reward_shaping.py`: ready for future shaping (currently structural).
+   - `exp_states_envs.py`: structural harness for state/env ablations.
+   - `exp_regimes.py`: structural harness for regime experiments.
+
+7. **Training entrypoint**
+   - `train.py`: a simple, single-run training script that is easy to tweak and debug.
+
+---
+
+### 4. How to run things
+
+#### 4.1 Environment setup
+
+From the project root:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # on macOS/Linux
+# .venv\Scripts\activate   # on Windows
+
+pip install -r requirements.txt
+```
+
+#### 4.2 Basic PPO training sanity check
+
+```bash
+cd .../finm-rl-project
+python train.py
+```
+
+- Uses SPY daily data (2010–2020 train window).
+- Logs PPO training metrics to `ppo_train_logs.json`.
+
+#### 4.3 Core PPO vs baselines
+
+```bash
+python -m experiments.exp_core_baselines
+```
+
+- Output: `results/core_baselines/`:
+  - `core_metrics.json` – metrics for PPO, BuyAndHold, MACrossover.
+  - `core_equity.png` – equity curves for all three on the test period.
+
+#### 4.4 Hyperparameter sweeps
+
+```bash
+python -m experiments.exp_ppo_hyperparams
+```
+
+- Output: `results/ppo_hyperparams/`:
+  - Per-run:
+    - `<name>_train_logs.json`
+    - `<name>_equity.png`
+    - `<name>.json` with config + metrics.
+  - Summaries:
+    - `summary_test_metrics.json`
+    - `summary_test_metrics.csv` (plus a printed table).
+
+Use a notebook or pandas to inspect:
+
+```python
+import pandas as pd
+df = pd.read_csv("results/ppo_hyperparams/summary_test_metrics.csv")
+df.sort_values("sharpe", ascending=False)
+```
+
+#### 4.5 State/env comparison
+
+```bash
+python -m experiments.exp_states_envs
+```
+
+- Currently only runs `single_simple`.
+- Output: `results/states_envs/` with `single_simple_metrics.json` and `single_simple_equity.png`.
+
+#### 4.6 Reward shaping scaffold
+
+```bash
+python -m experiments.exp_reward_shaping
+```
+
+- Output: `results/reward_shaping/`:
+  - `<name>_metrics.json`, `<name>_equity.png` for each shaping config.
+- Once env shaping is implemented, re-run to see impact on metrics and curves.
+
+#### 4.7 Regime scaffold
+
+```bash
+python -m experiments.exp_regimes
+```
+
+- Output: `results/regimes/`:
+  - `overall_metrics.json`, `overall_equity.png`.
+- Later, extend to compute metrics per regime (bull/bear, high/low vol).
+
+---
+
+### 5. How to use the results
+
+- **For quick inspection**
+  - Look at JSON files in `results/*` to see metrics per run.
+  - Open PNG plots to get a qualitative feel for equity behavior.
+
+- **For analysis/notebooks**
+  - Create notebooks under `notebooks/` to:
+    - `read_json`/`pd.read_csv` the logs from `results/`.
+    - Use `eval.summarize.summarize_runs` where available.
+    - Produce:
+      - Tables of metrics across hyperparams,
+      - Plots of equity vs baselines,
+      - Regime-split summaries (after you implement regimes).
+
+- **For slides**
+  - Choose:
+    - 1–2 plots from `core_baselines` (PPO vs baselines),
+    - 1–2 plots/tables from `ppo_hyperparams` showing sensitivity to clip/entropy/γ/λ,
+    - 1 state/env table and plot once rich/pairs are implemented,
+    - 1 reward-shaping and 1 regime-split table once those pieces are wired.
+
+---
+
+### 6. Suggested next steps
+
+1. Implement **reward shaping** in `SingleAssetEnv` and wire it into `exp_reward_shaping.py`.
+2. Implement **rich features** and **PairsEnv**, then extend `exp_states_envs.py`.
+3. Implement **regime labels** and extend `exp_regimes.py` to produce regime-split metrics.
+4. Build **analysis notebooks** that:
+   - Read `results/**`,
+   - Plot key comparisons,
+   - Export figure/table assets for your talk.
+

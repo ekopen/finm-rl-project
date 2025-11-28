@@ -1,0 +1,26 @@
+{
+  "clip0.1_ent0.00": {
+    "total_return": 0.558095019074853,
+    "annualized_return": 0.11761497329577719,
+    "sharpe": 0.5197981335818351,
+    "max_drawdown": 0.3371727952679091
+  },
+  "clip0.2_ent0.01": {
+    "total_return": 0.558095019074853,
+    "annualized_return": 0.11761497329577719,
+    "sharpe": 0.5197981335818351,
+    "max_drawdown": 0.3371727952679091
+  },
+  "clip0.3_ent0.01": {
+    "total_return": 0.0,
+    "annualized_return": 0.0,
+    "sharpe": 0.0,
+    "max_drawdown": 0.0
+  },
+  "gamma0.95_lambda0.90": {
+    "total_return": 0.558095019074853,
+    "annualized_return": 0.11761497329577719,
+    "sharpe": 0.5197981335818351,
+    "max_drawdown": 0.3371727952679091
+  }
+}
