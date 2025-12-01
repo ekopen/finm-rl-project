@@ -7,7 +7,7 @@ def fetch_single_asset(
     start="2000-01-01",
     end="2025-01-01",
     interval="1d",
-    save_path="/data/{ticker}.csv"
+    save_path="data_cache/{ticker}.csv",
 ):
     """
     Download OHLCV data for a single ticker.
@@ -17,8 +17,10 @@ def fetch_single_asset(
 
     # Ensure standard column format
     df = df.rename(columns=str.lower)  # open, high, low, close, volume
-    
+
     if save_path:
+        # Allow {ticker} placeholder in the path
+        save_path = save_path.format(ticker=ticker)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         df.to_csv(save_path)
         print(f"Saved to {save_path}")
