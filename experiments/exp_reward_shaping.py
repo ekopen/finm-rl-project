@@ -28,11 +28,32 @@ from experiments.common import (
 )
 
 
-# Placeholder shaping configs; env currently ignores these but we log them.
+# Reward shaping configs passed directly to SingleAssetEnv.
 SHAPING_CONFIGS = [
-    {"name": "no_shaping", "transaction_cost": 0.0, "lambda_risk": 0.0},
-    {"name": "high_cost", "transaction_cost": 0.002, "lambda_risk": 0.0},
-    {"name": "risk_penalty", "transaction_cost": 0.0, "lambda_risk": 0.2},
+    {
+        "name": "no_shaping",
+        "transaction_cost": 0.0,
+        "lambda_risk": 0.0,
+        "lambda_drawdown": 0.0,
+    },
+    {
+        "name": "high_cost",
+        "transaction_cost": 0.002,
+        "lambda_risk": 0.0,
+        "lambda_drawdown": 0.0,
+    },
+    {
+        "name": "risk_penalty",
+        "transaction_cost": 0.0,
+        "lambda_risk": 0.2,
+        "lambda_drawdown": 0.0,
+    },
+    {
+        "name": "drawdown_guard",
+        "transaction_cost": 0.0,
+        "lambda_risk": 0.0,
+        "lambda_drawdown": 0.5,
+    },
 ]
 
 
@@ -44,14 +65,13 @@ def main() -> None:
         name = cfg["name"]
         print(f"\n=== Reward shaping config: {cfg} ===")
 
-        # TODO: once SingleAssetEnv accepts transaction_cost, lambda_risk, etc.,
-        # pass them here instead of only logging them.
-        train_env = make_single_asset_env(train_df)
+        env_config = {k: v for k, v in cfg.items() if k != "name"}
+        train_env = make_single_asset_env(train_df, env_config=env_config)
         base_config = make_base_config()
         log_path = str(results_dir / f"{name}_train_logs.json")
         agent = train_env_with_config(train_env, base_config, log_path=log_path)
 
-        test_env = make_single_asset_env(test_df)
+        test_env = make_single_asset_env(test_df, env_config=env_config)
         eq_ppo = run_policy_episode(test_env, agent)
         min_len = len(eq_ppo)
         dates = test_df.index[:min_len]

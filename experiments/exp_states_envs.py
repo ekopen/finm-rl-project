@@ -20,6 +20,7 @@ from eval.metrics import (
     compute_total_return,
 )
 from eval.plotting import plot_equity_curves
+from features.state_builders import make_rich_features
 from ppo.eval_utils import run_policy_episode
 
 from experiments.common import (
@@ -33,7 +34,7 @@ from experiments.common import (
 
 CONFIGS = [
     {"name": "single_simple", "type": "single_simple"},
-    {"name": "single_rich", "type": "single_rich"},   # TODO
+    {"name": "single_rich", "type": "single_rich"},
     {"name": "pairs_simple", "type": "pairs_simple"}, # TODO
 ]
 
@@ -46,19 +47,26 @@ def main() -> None:
         cfg_type = cfg["type"]
         name = cfg["name"]
 
-        if cfg_type != "single_simple":
+        if cfg_type == "single_simple":
+            features_builder = None  # default simple features
+        elif cfg_type == "single_rich":
+            features_builder = make_rich_features
+        else:
             print(f"Skipping {name} (type={cfg_type}) – not yet implemented.")
             continue
 
         print(f"\n=== Running state/env config: {name} ===")
 
-        # single_simple: SingleAssetEnv + simple features.
-        train_env = make_single_asset_env(train_df)
+        builder_kwargs = {}
+        if features_builder is not None:
+            builder_kwargs["features_builder"] = features_builder
+
+        train_env = make_single_asset_env(train_df, **builder_kwargs)
         base_config = make_base_config()
         log_path = str(results_dir / f"{name}_train_logs.json")
         agent = train_env_with_config(train_env, base_config, log_path=log_path)
 
-        test_env = make_single_asset_env(test_df)
+        test_env = make_single_asset_env(test_df, **builder_kwargs)
         eq_ppo = run_policy_episode(test_env, agent)
         min_len = len(eq_ppo)
         dates = test_df.index[:min_len]

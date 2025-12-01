@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
-from typing import Tuple
+from typing import Callable, Tuple
 
 import pandas as pd
 
@@ -33,13 +33,21 @@ def load_spy_splits() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return train, val, test
 
 
-def make_single_asset_env(prices_df: pd.DataFrame) -> SingleAssetEnv:
-    """Build SingleAssetEnv with simple features from a price dataframe."""
-    features_df = make_simple_features(prices_df)
+FeatureBuilder = Callable[[pd.DataFrame], pd.DataFrame]
+
+
+def make_single_asset_env(
+    prices_df: pd.DataFrame,
+    features_builder: FeatureBuilder = make_simple_features,
+    env_config: dict | None = None,
+) -> SingleAssetEnv:
+    """Build SingleAssetEnv from a price dataframe using the provided builder."""
+    features_df = features_builder(prices_df)
     return SingleAssetEnv(
         prices_df=prices_df,
         features_df=features_df,
         initial_cash=1.0,
+        config=env_config,
     )
 
 

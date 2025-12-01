@@ -40,6 +40,9 @@ class SingleAssetEnv:
         )
         self.initial_cash = float(initial_cash)
         self.config: dict[str, Any] = config or {}
+        self.transaction_cost = float(self.config.get("transaction_cost", 0.0))
+        self.lambda_risk = float(self.config.get("lambda_risk", 0.0))
+        self.lambda_drawdown = float(self.config.get("lambda_drawdown", 0.0))
 
         self.num_steps = len(self.prices)
         if self.num_steps != self.features.shape[0]:
@@ -52,6 +55,7 @@ class SingleAssetEnv:
         self.t: int = 0
         self.position: int = 0
         self.portfolio_value: float = self.initial_cash
+        self.peak_value: float = self.initial_cash
 
     def reset(self) -> np.ndarray:
         """
@@ -65,6 +69,7 @@ class SingleAssetEnv:
         self.t = 0
         self.position = 0  # -1 short, 0 flat, +1 long
         self.portfolio_value = self.initial_cash
+        self.peak_value = self.initial_cash
         return self._get_state()
 
     def _get_state(self) -> np.ndarray:
@@ -106,13 +111,32 @@ class SingleAssetEnv:
         curr_price = self.prices[self.t]
 
         price_return = (curr_price - prev_price) / prev_price
-        reward = float(new_pos * price_return)
+        raw_reward = float(new_pos * price_return)
+        cost_penalty = self.transaction_cost * abs(new_pos - self.position)
+        risk_penalty = self.lambda_risk * (price_return**2)
+
+        reward = raw_reward - cost_penalty - risk_penalty
+
+        proposed_value = self.portfolio_value * (1.0 + reward)
+        peak_candidate = max(self.peak_value, proposed_value)
+        drawdown_ratio = 0.0
+        if peak_candidate > 0.0:
+            drawdown_ratio = max(0.0, (peak_candidate - proposed_value) / peak_candidate)
+        drawdown_penalty = self.lambda_drawdown * drawdown_ratio
+        reward -= drawdown_penalty
 
         self.position = new_pos
         self.portfolio_value *= 1.0 + reward
+        self.peak_value = max(self.peak_value, self.portfolio_value)
 
         next_state = self._get_state()
-        info: dict[str, float] = {"portfolio_value": float(self.portfolio_value)}
+        info: dict[str, float] = {
+            "portfolio_value": float(self.portfolio_value),
+            "raw_reward": raw_reward,
+            "transaction_cost": cost_penalty,
+            "risk_penalty": risk_penalty,
+            "drawdown_penalty": drawdown_penalty,
+        }
         return next_state, reward, done, info
 
 

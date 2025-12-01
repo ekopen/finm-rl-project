@@ -27,6 +27,8 @@ The end product is a set of **scripts and logs** you can use to generate plots a
 
 ### 2. Implementation checklist
 
+> **Status snapshot:** Core PPO training, rich feature engineering, regime labeling/metrics, and reward-shaping knobs are all implemented. The remaining focus areas are (a) multi-asset env variants, (b) nicer regime visualizations, and (c) analysis notebooks for storytelling.
+
 #### 2.1 Implemented
 
 - **Data loading**
@@ -49,13 +51,18 @@ The end product is a set of **scripts and logs** you can use to generate plots a
         - `ma`: rolling mean of `close` over `window`.
         - `vol`: rolling std of `ret` over `window`.
       - Returns augmented DataFrame.
+    - `make_rich_features(df)`:
+      - Builds on the simple features with multi-horizon returns, momentum, realized-volatility estimates, a 200-day trend factor, and a volume z-score (when volume is available).
 
 - **Environment**
   - `envs/single_asset_env.py`:
     - `SingleAssetEnv(prices_df, features_df, initial_cash=1.0, config=None)`:
       - Uses `prices_df["close"]` and `features_df[["ret","ma","vol"]]`.
       - Discrete actions: 0=short, 1=flat, 2=long.
-      - Reward = position × daily price return.
+      - Reward starts as position × daily price return and optionally applies:
+        - `transaction_cost`: penalty per unit position change,
+        - `lambda_risk`: penalty proportional to squared daily return,
+        - `lambda_drawdown`: penalty proportional to drawdown ratio.
       - Maintains `portfolio_value` and returns `info["portfolio_value"]`.
     - Methods:
       - `reset()` → initial state (features + position).
@@ -114,6 +121,10 @@ The end product is a set of **scripts and logs** you can use to generate plots a
       - Returns `(equity, index)`.
 
 - **Evaluation utilities**
+  - `features/regimes.py`:
+    - `label_bull_bear(df, ma_window=200)` → bull/bear strings based on price vs. long moving average.
+    - `label_volatility(df, window=20, quantile=0.7)` → `high_vol`/`low_vol` via rolling realized volatility thresholds.
+
   - `eval/metrics.py`:
     - `compute_total_return(equity)`
     - `compute_annualized_return(equity, periods_per_year)`
@@ -130,7 +141,7 @@ The end product is a set of **scripts and logs** you can use to generate plots a
 - **Experiment helpers**
   - `experiments/common.py`:
     - `load_spy_splits()` → `(train_df, val_df, test_df)` for SPY.
-    - `make_single_asset_env(prices_df)` → `SingleAssetEnv`.
+    - `make_single_asset_env(prices_df, features_builder=..., env_config=None)` → helper to build `SingleAssetEnv` with optional rich features or shaping config.
     - `make_base_config(**overrides)` → common `PPOConfig`.
     - `make_results_dir(exp_name)` → `results/<exp_name>/`.
     - `train_env_with_config(env, config, log_path=None)` → trained `PPOAgent`.
@@ -152,17 +163,17 @@ The end product is a set of **scripts and logs** you can use to generate plots a
       - Saves per-run JSON + equity plot.
     - Writes multi-run summaries (JSON + CSV) and prints a table.
   - `experiments/exp_reward_shaping.py`:
-    - Scaffold: loops over shaping configs (`no_shaping`, `high_cost`, `risk_penalty`).
-    - Currently only logs and trains PPO; env does not yet use the shaping parameters.
+    - Runs multiple shaping configs (transaction costs, risk penalties, drawdown guards).
+    - Passes the knobs into `SingleAssetEnv` so each config truly affects rewards.
     - Saves metrics + equity plot per config.
   - `experiments/exp_states_envs.py`:
-    - Scaffold to compare:
-      - `single_simple` (implemented).
-      - `single_rich`, `pairs_simple` (placeholders).
-    - For `single_simple`, trains PPO and evaluates test equity + metrics.
+    - Runs:
+      - `single_simple`: SingleAssetEnv + simple features.
+      - `single_rich`: SingleAssetEnv + rich features (multi-horizon stats).
+    - Keeps `pairs_simple` as a placeholder for future multi-asset tests.
   - `experiments/exp_regimes.py`:
     - Trains PPO on train period, evaluates overall metrics on test.
-    - Placeholder TODOs for future regime-splitting once `features.regimes` exists.
+    - Uses `features.regimes` labels to compute bull/bear and volatility-split metrics and saves them to JSON.
 
 - **Top-level training entrypoint**
   - `train.py`:
@@ -171,60 +182,29 @@ The end product is a set of **scripts and logs** you can use to generate plots a
 
 ---
 
-#### 2.2 Not yet implemented / partially implemented
+#### 2.2 Remaining gaps (next up)
 
-- **Reward shaping in env**
-  - `SingleAssetEnv` does **not yet**:
-    - Apply transaction costs,
-    - Apply risk penalties,
-    - Apply drawdown penalties.
-  - `exp_reward_shaping.py` is ready but currently treats shaping configs only as logged metadata.
+- **Multi-asset envs**
+  - `PairsEnv` and other multi-asset environments are not yet implemented.
+  - `exp_states_envs.py` still skips the `pairs_simple` configuration until that env exists.
 
-- **Rich state & multi-envs**
-  - `make_rich_features(df)` – stubbed in `features/state_builders.py`.
-  - `PairsEnv`, multi-asset env – not yet implemented.
-  - `exp_states_envs.py` has TODO configs: `single_rich`, `pairs_simple`.
-
-- **Regime labeling**
-  - `features/regimes.py` functions `label_bull_bear` and `label_volatility` are stubs.
-  - `exp_regimes.py` currently only computes overall metrics; regime-split metrics are TODO.
-
----
+- **Regime visualization**
+  - Regime metrics are saved to JSON, but richer plotting/reporting (e.g., regime-colored equity curves) is still TBD.
 
 #### 2.3 Checklist of what still needs to be done
 
-1. **Reward shaping**
-   - Extend `SingleAssetEnv` to include:
-     - `transaction_cost` per position change.
-     - `lambda_risk` penalizing volatility or other risk measures.
-     - (Optionally) `lambda_dd` penalizing drawdown increments.
-   - Wire these into `exp_reward_shaping.py` by passing knobs into the env constructor and re-running experiments.
+1. **Multi-asset envs & ablations**
+  - Implement `PairsEnv` (or another simple multi-asset variant).
+  - Extend `exp_states_envs.py` to run the `pairs_simple` configuration once the env exists.
 
-2. **Rich state + new envs**
-   - Implement `make_rich_features(df)` with:
-     - Multi-horizon returns (5d, 20d, 60d),
-     - Multi-horizon vol,
-     - Volume z-score, etc.
-   - Create `PairsEnv` and (optionally) multi-asset envs.
-   - Extend `exp_states_envs.py` to run:
-     - `single_rich`,
-     - `pairs_simple`,
-     - Possibly additional variants.
+2. **Regime visualization & reporting**
+  - Build plots/tables that highlight behavior within each regime (e.g., colorized equity curves, summary tables for slides).
 
-3. **Regime labeling and regime experiments**
-   - Implement in `features/regimes.py`:
-     - `label_bull_bear(df, ma_window)` → bull/bear labels.
-     - `label_volatility(df, window, quantile)` → high/low vol labels.
-   - Extend `exp_regimes.py` to:
-     - Label test dates,
-     - Re-compute metrics per regime (bull vs bear, high vs low vol),
-     - Save regime-split tables and plots.
-
-4. **Analysis notebooks**
-   - Create notebooks under `notebooks/` to:
-     - Load results from `results/`,
-     - Plot training curves and equity curves,
-     - Build summary tables for slides.
+3. **Analysis notebooks**
+  - Create notebooks under `notebooks/` to:
+    - Load results from `results/`,
+    - Plot training curves and equity curves,
+    - Build summary tables for slides.
 
 ---
 
@@ -271,7 +251,7 @@ At a high level:
    - `experiments/common.py`: shared logic for all experiment scripts (data splits, config, env construction).
    - `exp_core_baselines.py`: core benchmark — PPO vs buy-and-hold vs MA crossover.
    - `exp_ppo_hyperparams.py`: PPO hyperparameter sweeps, with summary tables.
-   - `exp_reward_shaping.py`: ready for future shaping (currently structural).
+  - `exp_reward_shaping.py`: applies transaction-cost/risk/drawdown knobs and logs their impact.
    - `exp_states_envs.py`: structural harness for state/env ablations.
    - `exp_regimes.py`: structural harness for regime experiments.
 
@@ -343,8 +323,8 @@ df.sort_values("sharpe", ascending=False)
 python -m experiments.exp_states_envs
 ```
 
-- Currently only runs `single_simple`.
-- Output: `results/states_envs/` with `single_simple_metrics.json` and `single_simple_equity.png`.
+- Runs `single_simple` (simple features) and `single_rich` (rich features).
+- Output: `results/states_envs/` with `<name>_metrics.json` / `<name>_equity.png` per config.
 
 #### 4.6 Reward shaping scaffold
 
@@ -354,7 +334,7 @@ python -m experiments.exp_reward_shaping
 
 - Output: `results/reward_shaping/`:
   - `<name>_metrics.json`, `<name>_equity.png` for each shaping config.
-- Once env shaping is implemented, re-run to see impact on metrics and curves.
+- Each config now applies its transaction-cost / risk / drawdown knobs inside the env, so curves directly reflect the shaping choice.
 
 #### 4.7 Regime scaffold
 
@@ -363,8 +343,7 @@ python -m experiments.exp_regimes
 ```
 
 - Output: `results/regimes/`:
-  - `overall_metrics.json`, `overall_equity.png`.
-- Later, extend to compute metrics per regime (bull/bear, high/low vol).
+  - `overall_metrics.json`, `overall_equity.png`, `regime_metrics.json` (bull/bear + volatility splits).
 
 ---
 
@@ -381,23 +360,22 @@ python -m experiments.exp_regimes
     - Produce:
       - Tables of metrics across hyperparams,
       - Plots of equity vs baselines,
-      - Regime-split summaries (after you implement regimes).
+      - Regime-split summaries (now saved via `regime_metrics.json`).
 
 - **For slides**
   - Choose:
     - 1–2 plots from `core_baselines` (PPO vs baselines),
     - 1–2 plots/tables from `ppo_hyperparams` showing sensitivity to clip/entropy/γ/λ,
     - 1 state/env table and plot once rich/pairs are implemented,
-    - 1 reward-shaping and 1 regime-split table once those pieces are wired.
+    - Reward-shaping comparison tables/plots (`results/reward_shaping`) and, once available, regime-visualization assets.
 
 ---
 
 ### 6. Suggested next steps
 
-1. Implement **reward shaping** in `SingleAssetEnv` and wire it into `exp_reward_shaping.py`.
-2. Implement **rich features** and **PairsEnv**, then extend `exp_states_envs.py`.
-3. Implement **regime labels** and extend `exp_regimes.py` to produce regime-split metrics.
-4. Build **analysis notebooks** that:
+1. Build a simple **PairsEnv** (or similar multi-asset env) and enable the `pairs_simple` run inside `exp_states_envs.py`.
+2. Polish the **regime reporting** (e.g., add regime-colored plots / nicer tables for presentations).
+3. Build **analysis notebooks** that:
    - Read `results/**`,
    - Plot key comparisons,
    - Export figure/table assets for your talk.
