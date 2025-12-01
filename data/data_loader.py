@@ -7,7 +7,7 @@ def fetch_single_asset(
     start="2000-01-01",
     end="2025-01-01",
     interval="1d",
-    save_path=None
+    save_path="/data/{ticker}.csv"
 ):
     """
     Download OHLCV data for a single ticker.
