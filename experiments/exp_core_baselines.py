@@ -41,7 +41,8 @@ def main() -> None:
 
     # Evaluate PPO policy on test period.
     test_env = make_single_asset_env(test_df)
-    eq_ppo = run_policy_episode(test_env, agent)
+    eq_ppo = run_policy_episode(test_env, agent, debug=True)
+
     # Baselines on test period.
     eq_bh = run_buy_and_hold(test_df)
     eq_ma, _ = run_ma_crossover(test_df)

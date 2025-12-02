@@ -136,6 +136,7 @@ class SingleAssetEnv:
             "transaction_cost": cost_penalty,
             "risk_penalty": risk_penalty,
             "drawdown_penalty": drawdown_penalty,
+            "position": float(self.position),  # <<< 新增这一行
         }
         return next_state, reward, done, info
 
