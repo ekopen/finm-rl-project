@@ -1,0 +1,34 @@
+{
+  "bull_bear": {
+    "bear": {
+      "total_return": -0.3541451249427011,
+      "annualized_return": -0.316066602136312,
+      "sharpe": -0.9521953940346549,
+      "max_drawdown": 0.4346136271669573,
+      "count": 290
+    },
+    "bull": {
+      "total_return": 1.1221626520338157,
+      "annualized_return": 0.3036840177557927,
+      "sharpe": 2.283344868620557,
+      "max_drawdown": 0.0911796612490754,
+      "count": 715
+    }
+  },
+  "volatility": {
+    "high_vol": {
+      "total_return": -0.016424140031337298,
+      "annualized_return": -0.013723664912593359,
+      "sharpe": -0.04108954651971725,
+      "max_drawdown": 0.4118361900948657,
+      "count": 302
+    },
+    "low_vol": {
+      "total_return": 0.39349606905179013,
+      "annualized_return": 0.12630674120030894,
+      "sharpe": 1.0007774195450445,
+      "max_drawdown": 0.1455196223226407,
+      "count": 703
+    }
+  }
+}
