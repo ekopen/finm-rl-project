@@ -86,3 +86,20 @@ def make_rich_features(df: pd.DataFrame) -> pd.DataFrame:
     return base
 
 
+def make_simple_pairs_features(
+    df_a: pd.DataFrame,
+    df_b: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Build simple features for a pairs setup.
+    Returns two feature DataFrames aligned on index.
+    """
+    # 对齐 index
+    idx = df_a.index.intersection(df_b.index)
+    df_a = df_a.loc[idx].copy()
+    df_b = df_b.loc[idx].copy()
+
+    feat_a = make_simple_features(df_a)
+    feat_b = make_simple_features(df_b)
+
+    return feat_a, feat_b
