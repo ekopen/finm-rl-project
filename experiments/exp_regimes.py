@@ -50,6 +50,76 @@ def _metrics_from_returns(returns: pd.Series) -> dict[str, float]:
     }
 
 
+def _plot_equity_with_regimes(
+    eq,
+    dates,
+    regimes,
+    label_to_color=None,
+    title="Equity Curve with Regimes",
+    out_path=None,
+):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    from matplotlib.patches import Patch
+
+    # Convert inputs
+    eq = np.asarray(eq, dtype=float)
+    x = pd.to_datetime(dates)  # Use actual dates on x-axis
+
+    # Ensure regimes is a pandas Series aligned with eq
+    regimes = pd.Series(regimes).reset_index(drop=True)
+
+    # Get unique regimes in order of appearance
+    unique_regimes = list(pd.unique(regimes))
+
+    # If no color mapping is provided, assign colors automatically
+    if label_to_color is None:
+        default_colors = ["green", "red", "blue", "orange", "purple", "gray"]
+        label_to_color = {}
+        for i, reg in enumerate(unique_regimes):
+            label_to_color[reg] = default_colors[i % len(default_colors)]
+
+    plt.figure(figsize=(12, 6))
+
+    # Plot equity curve
+    plt.plot(x, eq, label="Equity", color="black")
+
+    # Draw regime shading by contiguous segments
+    current = regimes.iloc[0]
+    start = 0
+
+    for i in range(1, len(regimes)):
+        if regimes.iloc[i] != current:
+            color = label_to_color.get(current, "gray")
+            plt.axvspan(x[start], x[i], color=color, alpha=0.15)
+            current = regimes.iloc[i]
+            start = i
+
+    # Last segment
+    color = label_to_color.get(current, "gray")
+    plt.axvspan(x[start], x[len(regimes) - 1], color=color, alpha=0.15)
+
+    # Legend for regimes + equity
+    regime_handles = [
+        Patch(facecolor=label_to_color[reg], alpha=0.15, label=str(reg))
+        for reg in unique_regimes
+    ]
+    equity_handle = plt.Line2D([], [], color="black", label="Equity")
+
+    plt.title(title)
+    plt.xlabel("Date")
+    plt.ylabel("Equity")
+    plt.legend(handles=regime_handles + [equity_handle])
+    plt.tight_layout()
+
+    if out_path:
+        plt.savefig(out_path, dpi=150)
+        plt.close()
+    else:
+        plt.show()
+        
+        
 def _compute_regime_metrics(
     returns: pd.Series, labels: pd.Series
 ) -> dict[str, dict[str, float]]:
@@ -109,6 +179,28 @@ def main() -> None:
     return_index = returns.index
     bull_bear = label_bull_bear(test_df).reindex(return_index).ffill().bfill()
     vol_regime = label_volatility(test_df).reindex(return_index).ffill().bfill()
+        
+    # Bull/Bear regimes
+    plot_path = results_dir / "bull_bear_equity.png"
+    _plot_equity_with_regimes(
+        eq_ppo,
+        dates,
+        bull_bear,
+        label_to_color={"bull": "green", "bear": "red"},
+        title="Equity Curve with Bull/Bear Regimes",
+        out_path=str(plot_path),
+    )
+
+    # Volatility regimes
+    plot_path = results_dir / "vol_regime_equity.png"
+    _plot_equity_with_regimes(
+        eq_ppo,
+        dates,
+        vol_regime,
+        label_to_color={"low_vol": "blue", "high_vol": "orange"},
+        title="Equity Curve with Volatility Regimes",
+        out_path=str(plot_path),
+    )
 
     regime_metrics = {
         "bull_bear": _compute_regime_metrics(returns, bull_bear),

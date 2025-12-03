@@ -1,1 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# virtual env
 .venv/
+
+# data
+data_cache/
+notebooks/data_cache/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# MacOS
+.DS_Store
