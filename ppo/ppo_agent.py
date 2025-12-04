@@ -83,9 +83,15 @@ class PPOAgent:
         self.model = ActorCritic(state_dim, action_dim).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
 
-    def act(self, state: np.ndarray) -> tuple[int, float, float]:
+    def act(self, state: np.ndarray, deterministic: bool = False) -> tuple[int, float, float]:
         """
-        Sample an action for a single state.
+        Sample or select an action for a single state.
+
+        Parameters
+        ----------
+        state : np.ndarray
+        deterministic : bool
+            If True, take the most likely action (greedy) instead of sampling.
 
         Returns
         -------
@@ -95,9 +101,12 @@ class PPOAgent:
         """
         state_t = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         with torch.no_grad():
-            probs, value = self.model(state_t)
+            probs, value = self.model(state_t)  # probs: (1, action_dim)
             dist = Categorical(probs=probs)
-            action = dist.sample()
+            if deterministic:
+                action = torch.argmax(probs, dim=-1)
+            else:
+                action = dist.sample()
             log_prob = dist.log_prob(action)
 
         return (
@@ -105,6 +114,85 @@ class PPOAgent:
             float(log_prob.item()),
             float(value.squeeze(0).item()),
         )
+        
+    def save(self, path: str) -> None:
+        checkpoint = {
+            "model": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "config": self.config.__dict__,
+        }
+        torch.save(checkpoint, path)
+
+    def load(self, path: str) -> None:
+        checkpoint = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(checkpoint["model"])
+        if "optimizer" in checkpoint:
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+            
+    def behavior_cloning_update(
+        self,
+        states: torch.Tensor,      # (N, obs_dim)
+        actions: torch.Tensor,     # (N,)
+        bc_epochs: int = 10,
+        batch_size: int = 128,
+        lr: float | None = None,
+    ) -> float:
+        """
+        Behavior cloning (supervised) pretraining on (state, expert_action) pairs.
+
+        Parameters
+        ----------
+        states : torch.Tensor
+            Expert states (N, obs_dim).
+        actions : torch.Tensor
+            Expert actions (N,) as integer labels.
+        bc_epochs : int
+            Number of passes over the dataset.
+        batch_size : int
+            Minibatch size.
+        lr : float or None
+            Optional learning rate for BC phase. If None, use PPO lr.
+
+        Returns
+        -------
+        final_loss : float
+            The last batch's BC loss (for logging).
+        """
+        device = self.device
+        states = states.to(device)
+        actions = actions.to(device).long()
+
+        if lr is not None:
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        else:
+            optimizer = self.optimizer  # reuse existing optimizer
+
+        dataset_size = states.shape[0]
+        final_loss = 0.0
+
+        for _ in range(bc_epochs):
+            perm = torch.randperm(dataset_size, device=device)
+            for start in range(0, dataset_size, batch_size):
+                idx = perm[start : start + batch_size]
+                batch_states = states[idx]
+                batch_actions = actions[idx]
+
+                probs, _ = self.model(batch_states)          # (B, action_dim)
+                log_probs = torch.log(probs + 1e-8)          # avoid log(0)
+                expert_logp = log_probs.gather(
+                    1, batch_actions.unsqueeze(1)
+                ).squeeze(1)                                 # (B,)
+
+                loss = -expert_logp.mean()                   # maximize log p(a*|s)
+
+                optimizer.zero_grad()
+                loss.backward()
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
+                optimizer.step()
+
+                final_loss = float(loss.item())
+
+        return final_loss
 
     def value(self, state: np.ndarray) -> float:
         """Estimate V(s) for a single state without sampling an action."""

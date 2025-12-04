@@ -1,33 +1,33 @@
 {
   "bull_bear": {
     "bear": {
-      "total_return": -0.3541451249427011,
-      "annualized_return": -0.316066602136312,
-      "sharpe": -0.9521953940346549,
-      "max_drawdown": 0.4346136271669573,
-      "count": 290
+      "total_return": 0.003233060165843904,
+      "annualized_return": 0.002818556225512081,
+      "sharpe": 0.007994334731702905,
+      "max_drawdown": 0.29602971442186443,
+      "count": 289
     },
     "bull": {
-      "total_return": 1.1221626520338157,
-      "annualized_return": 0.3036840177557927,
-      "sharpe": 2.283344868620557,
-      "max_drawdown": 0.0911796612490754,
-      "count": 715
+      "total_return": 1.017760055278707,
+      "annualized_return": 0.28026668857248804,
+      "sharpe": 1.9234639465347685,
+      "max_drawdown": 0.10639021589977316,
+      "count": 716
     }
   },
   "volatility": {
     "high_vol": {
-      "total_return": -0.016424140031337298,
-      "annualized_return": -0.013723664912593359,
-      "sharpe": -0.04108954651971725,
-      "max_drawdown": 0.4118361900948657,
+      "total_return": 0.5891324536945048,
+      "annualized_return": 0.47182252516703893,
+      "sharpe": 1.3467851685381365,
+      "max_drawdown": 0.2960297144218643,
       "count": 302
     },
     "low_vol": {
-      "total_return": 0.39349606905179013,
-      "annualized_return": 0.12630674120030894,
-      "sharpe": 1.0007774195450445,
-      "max_drawdown": 0.1455196223226407,
+      "total_return": 0.27382937163701415,
+      "annualized_return": 0.09063284727052956,
+      "sharpe": 0.642608845160316,
+      "max_drawdown": 0.22101818750294588,
       "count": 703
     }
   }
