@@ -1,0 +1,62 @@
+{
+  "seed_0_nopre": {
+    "total_return": -0.12755368252800514,
+    "annualized_return": -0.03363664342422734,
+    "sharpe": -0.21636970623269586,
+    "max_drawdown": 0.2983817421347731
+  },
+  "seed_0_pre": {
+    "total_return": 0.030075338373766858,
+    "annualized_return": 0.007457770975229927,
+    "sharpe": 0.03308643254008978,
+    "max_drawdown": 0.502050567761827
+  },
+  "seed_1_nopre": {
+    "total_return": -0.13164867789602275,
+    "annualized_return": -0.03477598701178175,
+    "sharpe": -0.17753153007033917,
+    "max_drawdown": 0.37012124032256843
+  },
+  "seed_1_pre": {
+    "total_return": 1.426219045856596,
+    "annualized_return": 0.24887727499700518,
+    "sharpe": 1.1059378459837108,
+    "max_drawdown": 0.23365585676528156
+  },
+  "seed_2_nopre": {
+    "total_return": 0.17235289704203938,
+    "annualized_return": 0.04067740737897774,
+    "sharpe": 0.19295318757727434,
+    "max_drawdown": 0.33359636947725024
+  },
+  "seed_2_pre": {
+    "total_return": 0.11641946036029327,
+    "annualized_return": 0.027998643561957692,
+    "sharpe": 0.12448059421497817,
+    "max_drawdown": 0.32942528038130414
+  },
+  "seed_3_nopre": {
+    "total_return": 0.22248658268711008,
+    "annualized_return": 0.051661881669777365,
+    "sharpe": 0.3318277855486618,
+    "max_drawdown": 0.22414359364704128
+  },
+  "seed_3_pre": {
+    "total_return": 0.9733409926490686,
+    "annualized_return": 0.18582563472242453,
+    "sharpe": 0.8218888263763762,
+    "max_drawdown": 0.22398239870066095
+  },
+  "seed_4_nopre": {
+    "total_return": -0.12099956029185599,
+    "annualized_return": -0.03182141147567108,
+    "sharpe": -0.1874640284626225,
+    "max_drawdown": 0.3591506154511295
+  },
+  "seed_4_pre": {
+    "total_return": 0.23632605087591552,
+    "annualized_return": 0.05463458960854295,
+    "sharpe": 0.24168248549699614,
+    "max_drawdown": 0.43148871917710685
+  }
+}
