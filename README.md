@@ -34,11 +34,13 @@ The end product is a set of **scripts and logs** you can use to generate plots a
 - **PPO stack** – `ppo/models.py`, `ppo/ppo_agent.py`, `ppo/trainer.py`, and `ppo/eval_utils.py` implement an actor–critic PPO agent, GAE, rollouts, training loop, and evaluation helpers.
 - **Baselines & evaluation** – `baselines/*`, `eval/metrics.py`, `eval/plotting.py`, and `eval/summarize.py` provide reference strategies plus consistent metric/plot utilities.
 - **Experiments & entrypoint** – `experiments/*.py` plus `train.py` cover core baselines, hyperparameter sweeps, reward shaping, regime analysis, and a quick-start training script.
+- **Regime visualization & reporting** – add plots/tables that highlight equity behavior per bull/bear or vol regime (e.g., colorized curves, summary tables).
+- **PPO pretraining** – Optional BC initialization (w/ vs w/o pretrain) for PPO to test improvements in sample efficiency and convergence.
+- **Robustness testing** – Seed sweeps and config variations to measure performance stability via mean/std of key metrics across runs.
 
 #### 2.2 Next up items
 
 1. **Multi-asset envs & ablations** – implement a simple `PairsEnv` (or similar) and enable the `pairs_simple` branch inside `experiments/exp_states_envs.py`.
-2. **Regime visualization & reporting** – add plots/tables that highlight equity behavior per bull/bear or vol regime (e.g., colorized curves, summary tables).
 3. **Analysis notebooks** – add notebooks under `notebooks/` that ingest `results/**`, plot training/equity curves, and assemble slide-ready tables.
 
 ---
