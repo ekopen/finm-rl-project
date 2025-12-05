@@ -147,11 +147,11 @@ def main() -> None:
     base_config = make_base_config()
     log_path = str(results_dir / "ppo_train_logs.json")
     agent = train_env_with_config(train_env, base_config, log_path=log_path)
-    from pathlib import Path
-    ckpt = Path("results/pretrain_ma_bc/ppo_bc_pretrained.pt")
-    if ckpt.exists():
-        print("Loading BC-pretrained PPO weights...")
-        agent.load(str(ckpt))
+    # from pathlib import Path
+    # ckpt = Path("results/pretrain_ma_bc/ppo_bc_pretrained.pt")
+    # if ckpt.exists():
+    #     print("Loading BC-pretrained PPO weights...")
+    #     agent.load(str(ckpt))
 
     # Evaluate on test period overall.
     test_env = make_single_asset_env(test_df)
