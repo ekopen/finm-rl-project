@@ -138,6 +138,66 @@ def _compute_regime_metrics(
     return metrics
 
 
+def _regime_metrics_to_dataframe(
+    regime_metrics: dict[str, dict[str, float]], regime_type: str
+) -> pd.DataFrame:
+    """Convert regime metrics dict into a pandas DataFrame.
+    
+    Args:
+        regime_metrics: Dict mapping regime labels to metric dicts
+        regime_type: Name of the regime type (e.g., "bull_bear", "volatility")
+    
+    Returns:
+        DataFrame with columns: regime_label, total_return, annualized_return, 
+        sharpe, max_drawdown, count
+    """
+    rows = []
+    for regime_label, metrics in regime_metrics.items():
+        rows.append(
+            {
+                "regime_label": regime_label,
+                "total_return": metrics.get("total_return", float("nan")),
+                "annualized_return": metrics.get("annualized_return", float("nan")),
+                "sharpe": metrics.get("sharpe", float("nan")),
+                "max_drawdown": metrics.get("max_drawdown", float("nan")),
+                "count": metrics.get("count", 0),
+            }
+        )
+    df = pd.DataFrame(rows)
+    return df
+
+
+def _create_regime_comparison_dataframe(
+    regime_metrics: dict[str, dict[str, dict[str, float]]]
+) -> pd.DataFrame:
+    """Create a combined comparison DataFrame for all regime types.
+    
+    Args:
+        regime_metrics: Dict with keys "bull_bear" and "volatility", each containing
+            regime label -> metrics dict mappings
+    
+    Returns:
+        DataFrame with columns: regime_type, regime_label, total_return,
+        annualized_return, sharpe, max_drawdown, count
+    """
+    rows = []
+    for regime_type, type_metrics in regime_metrics.items():
+        for regime_label, metrics in type_metrics.items():
+            rows.append(
+                {
+                    "regime_type": regime_type,
+                    "regime_label": regime_label,
+                    "total_return": metrics.get("total_return", float("nan")),
+                    "annualized_return": metrics.get("annualized_return", float("nan")),
+                    "sharpe": metrics.get("sharpe", float("nan")),
+                    "max_drawdown": metrics.get("max_drawdown", float("nan")),
+                    "count": metrics.get("count", 0),
+                }
+            )
+    df = pd.DataFrame(rows)
+    return df
+
+
 def main() -> None:
     train_df, _, test_df = load_spy_splits()
     results_dir = make_results_dir("regimes")
@@ -217,6 +277,35 @@ def main() -> None:
         json.dump(regime_metrics, f, indent=2)
 
     print(f"Wrote regime metrics to {regime_json}")
+
+    # Generate formatted tables for regime metrics
+    # Bull/Bear regime table
+    bull_bear_df = _regime_metrics_to_dataframe(
+        regime_metrics["bull_bear"], "bull_bear"
+    )
+    bull_bear_csv = results_dir / "bull_bear_regime_metrics.csv"
+    bull_bear_df.to_csv(bull_bear_csv, index=False)
+    print(f"\nBull/Bear Regime Metrics:")
+    print(bull_bear_df.to_string(index=False))
+    print(f"Wrote bull/bear regime metrics CSV to {bull_bear_csv}")
+
+    # Volatility regime table
+    volatility_df = _regime_metrics_to_dataframe(
+        regime_metrics["volatility"], "volatility"
+    )
+    volatility_csv = results_dir / "volatility_regime_metrics.csv"
+    volatility_df.to_csv(volatility_csv, index=False)
+    print(f"\nVolatility Regime Metrics:")
+    print(volatility_df.to_string(index=False))
+    print(f"Wrote volatility regime metrics CSV to {volatility_csv}")
+
+    # Combined comparison table
+    comparison_df = _create_regime_comparison_dataframe(regime_metrics)
+    comparison_csv = results_dir / "regime_comparison.csv"
+    comparison_df.to_csv(comparison_csv, index=False)
+    print(f"\nRegime Comparison (All Regimes):")
+    print(comparison_df.to_string(index=False))
+    print(f"Wrote regime comparison CSV to {comparison_csv}")
 
 
 if __name__ == "__main__":
