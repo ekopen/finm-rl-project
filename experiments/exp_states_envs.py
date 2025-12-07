@@ -118,11 +118,21 @@ def run_pairs_simple(
     with open(out_json, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
 
+    # Save equity curve array for later analysis
+    equity_json = results_dir / f"{name}_equity.json"
+    equity_data = {
+        "equity": eq_ppo.tolist(),
+        "dates": dates.strftime("%Y-%m-%d").tolist() if hasattr(dates, 'strftime') else [str(d) for d in dates]
+    }
+    with open(equity_json, "w", encoding="utf-8") as f:
+        json.dump(equity_data, f, indent=2)
+
     plot_path = results_dir / f"{name}_equity.png"
     plot_equity_curves({"PPO": eq_ppo}, dates=dates, out_path=str(plot_path))
 
     print(f"[{name}] metrics: {metrics}")
     print(f"[{name}] wrote metrics to {out_json}")
+    print(f"[{name}] wrote equity data to {equity_json}")
     print(f"[{name}] wrote equity plot to {plot_path}")
 
 
@@ -177,11 +187,21 @@ def main() -> None:
         with open(out_json, "w", encoding="utf-8") as f:
             json.dump(metrics, f, indent=2)
 
+        # Save equity curve array for later analysis
+        equity_json = results_dir / f"{name}_equity.json"
+        equity_data = {
+            "equity": eq_ppo.tolist(),
+            "dates": dates.strftime("%Y-%m-%d").tolist() if hasattr(dates, 'strftime') else [str(d) for d in dates]
+        }
+        with open(equity_json, "w", encoding="utf-8") as f:
+            json.dump(equity_data, f, indent=2)
+
         plot_path = results_dir / f"{name}_equity.png"
         plot_equity_curves({"PPO": eq_ppo}, dates=dates, out_path=str(plot_path))
 
         print(f"[{name}] metrics: {metrics}")
         print(f"[{name}] wrote metrics to {out_json}")
+        print(f"[{name}] wrote equity data to {equity_json}")
         print(f"[{name}] wrote equity plot to {plot_path}")
 
 
