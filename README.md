@@ -34,19 +34,19 @@ The end product is a set of **scripts and logs** you can use to generate plots a
 - **PPO stack** – `ppo/models.py`, `ppo/ppo_agent.py`, `ppo/trainer.py`, and `ppo/eval_utils.py` implement an actor–critic PPO agent, GAE, rollouts, training loop, and evaluation helpers.
 - **Baselines & evaluation** – `baselines/*`, `eval/metrics.py`, `eval/plotting.py`, and `eval/summarize.py` provide reference strategies plus consistent metric/plot utilities.
 - **Experiments & entrypoint** – `experiments/*.py` plus `train.py` cover core baselines, hyperparameter sweeps, reward shaping, regime analysis, and a quick-start training script.
-- **Regime visualization & reporting** – add plots/tables that highlight equity behavior per bull/bear or vol regime (e.g., colorized curves, summary tables).
+- **Regime visualization & reporting** – `exp_regimes.py` generates regime-colored equity plots and formatted CSV tables comparing performance across bull/bear and volatility regimes. Outputs include `bull_bear_regime_metrics.csv`, `volatility_regime_metrics.csv`, and `regime_comparison.csv` with formatted console output.
 - **PPO pretraining** – Optional BC initialization (w/ vs w/o pretrain) for PPO to test improvements in sample efficiency and convergence.
 - **Robustness testing** – Seed sweeps and config variations to measure performance stability via mean/std of key metrics across runs.
 - **Rich feature builder added** – `make_rich_features` for extended state representations.
 - **PairsEnv prototype added** – simple 2-asset environment (SPY/QQQ) with spread features and long-A/short-B vs short-A/long-B actions.
 - **State/env ablation extended** – `exp_states_envs.py` now runs `single_simple`, `single_rich`, and `pairs_simple`.
 - **Reward shaping fully wired** – transaction cost, risk penalty, and drawdown penalty integrated into SingleAssetEnv and used in `exp_reward_shaping.py`.
+- **Analysis notebooks** – `notebooks/analysis_main.ipynb` provides comprehensive analysis of all experiments (baselines, hyperparameters, states/envs, robustness) with export functionality. `notebooks/regime_analysis.ipynb` focuses on regime-specific analysis with visualizations and heatmaps.
 
 
 #### 2.2 Next up items
 
-1. **Multi-asset envs & ablations** (already finished)– implement a simple `PairsEnv` (or similar) and enable the `pairs_simple` branch inside `experiments/exp_states_envs.py`.
-3. **Analysis notebooks** – add notebooks under `notebooks/` that ingest `results/**`, plot training/equity curves, and assemble slide-ready tables.
+_No immediate next steps identified. The core functionality is complete._
 
 ---
 
@@ -193,14 +193,19 @@ python -m experiments.exp_reward_shaping
   - `lambda_drawdown` penalizes drawdowns relative to running peaks.
 
 
-#### 4.7 Regime scaffold
+#### 4.7 Regime analysis
 
 ```bash
 python -m experiments.exp_regimes
 ```
 
 - Output: `results/regimes/`:
-  - `overall_metrics.json`, `overall_equity.png`, `regime_metrics.json` (bull/bear + volatility splits).
+  - `overall_metrics.json`, `overall_equity.png` – overall performance metrics and equity curve.
+  - `regime_metrics.json` – detailed metrics split by bull/bear and volatility regimes.
+  - `bull_bear_regime_metrics.csv`, `volatility_regime_metrics.csv` – formatted CSV tables for each regime type.
+  - `regime_comparison.csv` – combined comparison table across all regimes.
+  - `bull_bear_equity.png`, `vol_regime_equity.png` – regime-colored equity curves.
+  - Formatted tables are printed to console for quick inspection.
 
 ---
 
@@ -211,29 +216,35 @@ python -m experiments.exp_regimes
   - Open PNG plots to get a qualitative feel for equity behavior.
 
 - **For analysis/notebooks**
-  - Create notebooks under `notebooks/` to:
-    - `read_json`/`pd.read_csv` the logs from `results/`.
-    - Use `eval.summarize.summarize_runs` where available.
-    - Produce:
-      - Tables of metrics across hyperparams,
-      - Plots of equity vs baselines,
-      - Regime-split summaries (now saved via `regime_metrics.json`).
+  - Use existing notebooks in `notebooks/`:
+    - `analysis_main.ipynb` – comprehensive analysis of all experiments:
+      - Core baselines comparison (PPO vs BuyAndHold vs MACrossover)
+      - Hyperparameter sensitivity analysis with scatter plots
+      - State/Environment ablation comparisons
+      - Robustness analysis using `eval.summarize.summarize_runs`
+      - Master comparison dashboard aggregating all experiments
+      - Exports tables to CSV, LaTeX, and HTML formats
+    - `regime_analysis.ipynb` – regime-specific analysis:
+      - Loads regime comparison CSV and JSON data
+      - Creates bar charts and heatmaps for regime performance
+      - Exports regime comparison tables in multiple formats
+  - All exported tables and figures are saved to `notebooks/exports/` directory.
 
 - **For slides**
-  - Choose:
+  - Use exported assets from `notebooks/exports/` or choose from:
     - 1–2 plots from `core_baselines` (PPO vs baselines),
     - 1–2 plots/tables from `ppo_hyperparams` showing sensitivity to clip/entropy/γ/λ,
-    - 1 state/env table and plot once rich/pairs are implemented,
-    - Reward-shaping comparison tables/plots (`results/reward_shaping`) and, once available, regime-visualization assets.
+    - State/env comparison tables and plots (`results/states_envs`),
+    - Reward-shaping comparison tables/plots (`results/reward_shaping`),
+    - Regime visualization assets: regime-colored equity curves (`results/regimes/*_equity.png`) and regime comparison tables (CSV/LaTeX/HTML from notebooks).
 
 ---
 
 ### 6. Suggested next steps
 
-
-1. Polish the **regime reporting** (e.g., add regime-colored plots / nicer tables for presentations).
-2. Build **analysis notebooks** that:
-   - Read `results/**`,
-   - Plot key comparisons,
-   - Export figure/table assets for your talk.
+_All major planned features are complete. Potential future enhancements could include:_
+- Additional regime analysis visualizations (e.g., time-series breakdowns)
+- Extended hyperparameter search spaces
+- Additional baseline strategies for comparison
+- Real-time trading simulation capabilities
 
