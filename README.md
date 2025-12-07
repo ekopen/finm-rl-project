@@ -37,10 +37,15 @@ The end product is a set of **scripts and logs** you can use to generate plots a
 - **Regime visualization & reporting** – add plots/tables that highlight equity behavior per bull/bear or vol regime (e.g., colorized curves, summary tables).
 - **PPO pretraining** – Optional BC initialization (w/ vs w/o pretrain) for PPO to test improvements in sample efficiency and convergence.
 - **Robustness testing** – Seed sweeps and config variations to measure performance stability via mean/std of key metrics across runs.
+- **Rich feature builder added** – `make_rich_features` for extended state representations.
+- **PairsEnv prototype added** – simple 2-asset environment (SPY/QQQ) with spread features and long-A/short-B vs short-A/long-B actions.
+- **State/env ablation extended** – `exp_states_envs.py` now runs `single_simple`, `single_rich`, and `pairs_simple`.
+- **Reward shaping fully wired** – transaction cost, risk penalty, and drawdown penalty integrated into SingleAssetEnv and used in `exp_reward_shaping.py`.
+
 
 #### 2.2 Next up items
 
-1. **Multi-asset envs & ablations** – implement a simple `PairsEnv` (or similar) and enable the `pairs_simple` branch inside `experiments/exp_states_envs.py`.
+1. **Multi-asset envs & ablations** (already finished)– implement a simple `PairsEnv` (or similar) and enable the `pairs_simple` branch inside `experiments/exp_states_envs.py`.
 3. **Analysis notebooks** – add notebooks under `notebooks/` that ingest `results/**`, plot training/equity curves, and assemble slide-ready tables.
 
 ---
@@ -56,12 +61,19 @@ At a high level:
    - `features/data_loader.py`: high-level wrapper:
      - Single ticker, clean schema, date handling.
    - `features/state_builders.py`: transforms price DataFrames into feature DataFrames.
+   - `make_simple_pairs_features` – aligns two tickers and constructs simple per-asset features for pairs trading.
+
 
 2. **Environment**
    - `envs/single_asset_env.py`: converts prices + features → RL environment:
      - State: `[ret, ma, vol, position]`.
      - Action: discrete {short, flat, long}.
      - Reward: per-step PnL.
+   - `envs/pairs_env.py` – simple 2-asset environment:
+     - State includes features for both assets + spread + positions.
+     - Actions = {flat, long A / short B, short A / long B}.
+     - Rewards combine both legs with transaction-cost / risk / drawdown shaping.
+      
 
 3. **PPO implementation**
    - `ppo/models.py`: actor–critic NN container.
@@ -161,7 +173,10 @@ python -m experiments.exp_states_envs
 ```
 
 - Runs `single_simple` (simple features) and `single_rich` (rich features).
-- Output: `results/states_envs/` with `<name>_metrics.json` / `<name>_equity.png` per config.
+- Output: `results/states_envs/` with `<name>_metrics.json` / `<name>_equity.png` per config. 
+- The `pairs_simple` configuration (SPY/QQQ) is now enabled and produces
+`pairs_simple_metrics.json` and `pairs_simple_equity.png`.
+
 
 #### 4.6 Reward shaping scaffold
 
@@ -172,6 +187,11 @@ python -m experiments.exp_reward_shaping
 - Output: `results/reward_shaping/`:
   - `<name>_metrics.json`, `<name>_equity.png` for each shaping config.
 - Each config now applies its transaction-cost / risk / drawdown knobs inside the env, so curves directly reflect the shaping choice.
+  The environment now *actually applies* shaping:
+  - `transaction_cost` penalizes position changes,
+  - `lambda_risk` penalizes squared returns,
+  - `lambda_drawdown` penalizes drawdowns relative to running peaks.
+
 
 #### 4.7 Regime scaffold
 
@@ -210,9 +230,9 @@ python -m experiments.exp_regimes
 
 ### 6. Suggested next steps
 
-1. Build a simple **PairsEnv** (or similar multi-asset env) and enable the `pairs_simple` run inside `exp_states_envs.py`.
-2. Polish the **regime reporting** (e.g., add regime-colored plots / nicer tables for presentations).
-3. Build **analysis notebooks** that:
+
+1. Polish the **regime reporting** (e.g., add regime-colored plots / nicer tables for presentations).
+2. Build **analysis notebooks** that:
    - Read `results/**`,
    - Plot key comparisons,
    - Export figure/table assets for your talk.
