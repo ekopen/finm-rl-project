@@ -277,8 +277,14 @@ class PPOAgent:
 
         stats: dict[str, float] = {}
 
-        for _ in range(self.config.update_epochs):
-            permutation = torch.randperm(batch_size, device=self.device)
+        # Use deterministic shuffling with a generator seeded by epoch number
+        # This ensures reproducibility while still varying minibatch order across epochs
+        base_seed = 42  # Constant seed for deterministic shuffling
+        for epoch in range(self.config.update_epochs):
+            # Create generator with seed based on epoch for deterministic but varying shuffles
+            gen = torch.Generator(device=self.device)
+            gen.manual_seed(base_seed + epoch)
+            permutation = torch.randperm(batch_size, device=self.device, generator=gen)
 
             for start in range(0, batch_size, minibatch_size):
                 idx = permutation[start : start + minibatch_size]
