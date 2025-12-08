@@ -1,0 +1,32 @@
+{
+  "Buy & Hold": {
+    "total_return": 0.884924739003174,
+    "annualized_return": 0.1820695440184481,
+    "sharpe": 0.8736828657869518,
+    "max_drawdown": 0.24496410967759308
+  },
+  "MA Crossover": {
+    "total_return": -0.19753722759029047,
+    "annualized_return": -0.05641684013503723,
+    "sharpe": -0.2702976579247454,
+    "max_drawdown": 0.46690675958433103
+  },
+  "single_simple": {
+    "total_return": 1.2477396705086377,
+    "annualized_return": 0.23827398340298367,
+    "sharpe": 1.4306876405239957,
+    "max_drawdown": 0.15495365944120743
+  },
+  "single_rich": {
+    "total_return": 0.09161831555279565,
+    "annualized_return": 0.0234011745592273,
+    "sharpe": 0.13379066497415879,
+    "max_drawdown": 0.4306488878532482
+  },
+  "pairs_simple": {
+    "total_return": 0.1459421711400497,
+    "annualized_return": 0.036600751265425835,
+    "sharpe": 0.41077896508405953,
+    "max_drawdown": 0.11518993397567923
+  }
+}
