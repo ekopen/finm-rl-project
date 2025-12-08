@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import sys
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import List
+
+import numpy as np
 
 from eval.metrics import (
     compute_annualized_return,
@@ -34,14 +37,34 @@ from experiments.common import (
 )
 
 
+def set_global_seed(seed: int) -> None:
+    """Set global random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    try:
+        import torch  # type: ignore
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except ImportError:
+        # If torch is not available, just skip.
+        pass
+
+
 def build_train_and_test_envs():
     train_df, _, test_df = load_spy_splits()
-    train_env = make_single_asset_env(train_df)
-    test_env = make_single_asset_env(test_df)
+    # Explicitly set transaction_cost=0.0 for fair comparison across hyperparameter configurations
+    env_config = {"transaction_cost": 0.0, "lambda_risk": 0.0, "lambda_drawdown": 0.0}
+    train_env = make_single_asset_env(train_df, env_config=env_config)
+    test_env = make_single_asset_env(test_df, env_config=env_config)
     return train_env, test_env, test_df.index
 
 
 def main() -> None:
+    # Set seed for reproducibility
+    set_global_seed(42)
+    
     base_config = make_base_config(
         steps_per_epoch=1024,
         epochs=8,
@@ -94,9 +117,27 @@ def main() -> None:
 
         # Evaluate on test env.
         eq_ppo = run_policy_episode(test_env, agent)
-        min_len = len(eq_ppo)
-        dates = test_index[:min_len]
-        eq_ppo = eq_ppo[:min_len]
+        
+        # Align dates with equity curve
+        # PPO equity has length N (initial + N-1 steps), where N = len(test_df)
+        # Dates correspond to test_df.index
+        dates = test_index[:len(eq_ppo)]
+        
+        # Validate equity curve
+        if np.isnan(eq_ppo).any():
+            nan_count = np.isnan(eq_ppo).sum()
+            raise ValueError(
+                f"[{name}] NaN values found in equity curve ({nan_count} NaNs). "
+                f"Equity length: {len(eq_ppo)}, Dates length: {len(dates)}"
+            )
+        
+        if len(eq_ppo) != len(dates):
+            raise ValueError(
+                f"[{name}] Length mismatch: equity ({len(eq_ppo)}) != dates ({len(dates)})"
+            )
+        
+        if len(eq_ppo) == 0:
+            raise ValueError(f"[{name}] Empty equity curve generated!")
 
         test_metrics = {
             "total_return": compute_total_return(eq_ppo),
