@@ -53,14 +53,27 @@ from experiments.common import (
 
 def set_global_seed(seed: int) -> None:
     """Set global random seeds for reproducibility."""
+    import os
     random.seed(seed)
     np.random.seed(seed)
+    
+    # Set Python hash seed for dictionary iteration order determinism
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    
     try:
         import torch  # type: ignore
 
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
+            torch.cuda.manual_seed(seed)
+        
+        # Enable deterministic algorithms (may warn if some ops can't be deterministic)
+        torch.use_deterministic_algorithms(True, warn_only=True)
+        
+        # Set CUDNN flags for determinism (even for CPU, some ops may use CUDNN)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     except ImportError:
         # If torch is not available, just skip.
         pass
