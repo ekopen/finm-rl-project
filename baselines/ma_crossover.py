@@ -16,6 +16,7 @@ def run_ma_crossover(
     fast: int = 20,
     slow: int = 50,
     initial_cash: float = 1.0,
+    allow_short: bool = False,
 ) -> tuple[np.ndarray, pd.Index]:
     """
     Run a simple moving-average crossover strategy on a price series.
@@ -30,6 +31,9 @@ def run_ma_crossover(
         Slow moving-average window length.
     initial_cash : float
         Starting equity value.
+    allow_short : bool
+        If True, go short when fast < slow (instead of flat).
+        If False, go flat when fast < slow (default for backward compatibility).
 
     Returns
     -------
@@ -61,8 +65,11 @@ def run_ma_crossover(
     if close_vals.shape[0] < 2:
         raise ValueError("Not enough data after MA warmup for crossover strategy.")
 
-    # Position: 1 when fast > slow, else 0 (flat).
-    position = (fast_vals > slow_vals).astype(float)
+    # Position: 1 when fast > slow, else 0 (flat) or -1 (short if allow_short=True).
+    if allow_short:
+        position = np.where(fast_vals > slow_vals, 1.0, -1.0)
+    else:
+        position = (fast_vals > slow_vals).astype(float)
 
     # Returns over each interval [t-1, t].
     returns = close_vals[1:] / close_vals[:-1] - 1.0
