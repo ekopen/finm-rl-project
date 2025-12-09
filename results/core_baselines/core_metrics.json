@@ -1,20 +1,20 @@
 {
   "PPO": {
-    "total_return": 1.1394447423595508,
-    "annualized_return": 0.22198763188460124,
-    "sharpe": 1.0611320310812293,
-    "max_drawdown": 0.27140648322271577
+    "total_return": -0.1991945393291551,
+    "annualized_return": -0.05687363540407475,
+    "sharpe": -0.3127063702990975,
+    "max_drawdown": 0.36155667758603927
   },
   "BuyAndHold": {
-    "total_return": 0.3922190341935823,
-    "annualized_return": 0.09114150077703354,
-    "sharpe": 0.39557824212902165,
-    "max_drawdown": 0.3371726160975672
+    "total_return": 0.8794674040468982,
+    "annualized_return": 0.1809597991857832,
+    "sharpe": 0.8687769800573021,
+    "max_drawdown": 0.24496392416327206
   },
   "MACrossover": {
-    "total_return": 0.28867913972493553,
-    "annualized_return": 0.0691385385028691,
-    "sharpe": 0.5246736566897525,
-    "max_drawdown": 0.2888702481928239
+    "total_return": -0.19986058956317954,
+    "annualized_return": -0.05708047112109749,
+    "sharpe": -0.27361401402930124,
+    "max_drawdown": 0.46690679020007353
   }
 }

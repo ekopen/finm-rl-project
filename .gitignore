@@ -14,3 +14,9 @@ notebooks/data_cache/
 
 # MacOS
 .DS_Store
+
+results/ppo_ensemble/*.png
+results/ppo_ensemble/*.json
+results/ppo_ensemble_weighted/*.png
+results/ppo_ensemble_weighted/*.json
+

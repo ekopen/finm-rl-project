@@ -157,6 +157,28 @@ def main() -> None:
     eq_bh = eq_bh_aligned
     eq_ma = eq_ma_aligned
     dates = common_dates
+    
+    # ------------------------------------------------------------------
+    # Save full time-series equity curves for later comparison
+    # ------------------------------------------------------------------
+    equity_df = pd.DataFrame(
+        {
+            "date": dates,
+            "PPO": eq_ppo,
+            "BuyAndHold": eq_bh,
+            "MACrossover": eq_ma,
+        }
+    ).set_index("date")
+
+    equity_ts_path = results_dir / "core_equity_timeseries.csv"
+    equity_df.to_csv(equity_ts_path)
+    print(f"Saved full equity time-series to {equity_ts_path}")
+
+    # (Optional) also save per-step returns if you want
+    returns_df = equity_df.pct_change().fillna(0.0)
+    returns_ts_path = results_dir / "core_returns_timeseries.csv"
+    returns_df.to_csv(returns_ts_path)
+    print(f"Saved per-step returns to {returns_ts_path}")
 
     metrics: dict[str, dict[str, float]] = {}
     for name, equity in [
