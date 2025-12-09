@@ -1,0 +1,12 @@
+{
+  "total_return": -0.6927280578323556,
+  "annualized_return": -0.2561278818403061,
+  "sharpe": -2.0027831072673203,
+  "max_drawdown": 0.6927280578323556,
+  "shaping_config": {
+    "name": "high_cost",
+    "transaction_cost": 0.002,
+    "lambda_risk": 0.0,
+    "lambda_drawdown": 0.0
+  }
+}
