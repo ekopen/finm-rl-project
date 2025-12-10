@@ -283,7 +283,8 @@ def load_baseline_equity_curves(test_df: pd.DataFrame) -> dict:
     train_env = make_single_asset_env(
         train_df, env_config={"transaction_cost": 0.0, "lambda_risk": 0.0, "lambda_drawdown": 0.0}
     )
-    config = make_base_config()
+    # Use same entropy_coef=0.01 as core_baselines experiment for consistency
+    config = make_base_config(entropy_coef=0.01, epochs=30)
     agent = train_env_with_config(train_env, config, log_path=None)
     
     # Evaluate baseline PPO on test period
@@ -437,18 +438,20 @@ def main() -> None:
     set_global_seed(42)
     
     base_config = make_base_config(
-        steps_per_epoch=1024,
-        epochs=15,  # Increased from 8 for better convergence
+        steps_per_epoch=2048,  # Increased from 1024 for better sample diversity
+        epochs=30,  # Increased for better convergence
         log_interval=2,
+        entropy_coef=0.01,  # Standard entropy value (not 0.5 which prevents learning)
     )
 
     # Build sweep using grid search and additional configs
     sweep: List[dict] = []
     
     # Grid search: clip_eps × entropy_coef
+    # Sweep reasonable entropy values that allow learning while encouraging exploration
     clip_eps_values = [0.1, 0.2, 0.3]
-    entropy_coef_values = [0.0, 0.01, 0.02]
-    
+    entropy_coef_values = [0.005, 0.01, 0.02, 0.05]  # Reasonable entropy values
+
     for clip_eps, entropy_coef in itertools.product(clip_eps_values, entropy_coef_values):
         # Format: clip0.1_ent0.00, clip0.2_ent0.01, etc.
         clip_str = f"{clip_eps:.1f}".replace(".", "")

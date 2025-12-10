@@ -34,7 +34,7 @@ class Actor(nn.Module):
     Output: action probabilities of shape (batch_size, act_dim)
     """
 
-    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int = 64) -> None:
+    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int = 128) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(obs_dim, hidden_dim),
@@ -43,6 +43,16 @@ class Actor(nn.Module):
             nn.Tanh(),
             nn.Linear(hidden_dim, act_dim),
         )
+        
+        # Initialize weights with orthogonal initialization for better gradient flow
+        # This is standard practice for PPO networks
+        for layer in self.net:
+            if isinstance(layer, nn.Linear):
+                nn.init.orthogonal_(layer.weight, gain=1.0)
+                nn.init.constant_(layer.bias, 0.0)
+        
+        # Use smaller gain for output layer to prevent initially extreme action preferences
+        nn.init.orthogonal_(self.net[-1].weight, gain=0.01)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         # obs: (batch_size, obs_dim)

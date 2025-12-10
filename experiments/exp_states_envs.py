@@ -85,7 +85,8 @@ def run_pairs_simple(
     feats_test_a, feats_test_b = make_simple_pairs_features(test_a, test_b)
 
     # 4) 构建 PairsEnv 并训练 PPO
-    base_config = make_base_config()
+    # Use epochs=30 for better convergence, aligned with baseline experiments
+    base_config = make_base_config(epochs=30)
     log_path = str(results_dir / f"{name}_train_logs.json")
 
     train_env = PairsEnv(
@@ -94,7 +95,7 @@ def run_pairs_simple(
         features_a=feats_train_a,
         features_b=feats_train_b,
         initial_cash=1.0,
-        config={},  # 如需交易成本/风险惩罚可在这里加
+        config={"transaction_cost": 0.0},  # Explicit for fair comparison
     )
     agent = train_env_with_config(train_env, base_config, log_path=log_path)
 
@@ -105,7 +106,7 @@ def run_pairs_simple(
         features_a=feats_test_a,
         features_b=feats_test_b,
         initial_cash=1.0,
-        config={},
+        config={"transaction_cost": 0.0},  # Explicit for fair comparison
     )
     eq_ppo = run_policy_episode(test_env, agent)
 
@@ -312,12 +313,22 @@ def main() -> None:
         if features_builder is not None:
             builder_kwargs["features_builder"] = features_builder
 
-        train_env = make_single_asset_env(train_df, **builder_kwargs)
-        base_config = make_base_config()
+        # Explicitly set transaction_cost=0.0 for fair comparison with baselines
+        train_env = make_single_asset_env(
+            train_df, 
+            env_config={"transaction_cost": 0.0, "lambda_risk": 0.0, "lambda_drawdown": 0.0},
+            **builder_kwargs
+        )
+        # Use epochs=30 for better convergence, aligned with baseline experiments
+        base_config = make_base_config(epochs=30)
         log_path = str(results_dir / f"{name}_train_logs.json")
         agent = train_env_with_config(train_env, base_config, log_path=log_path)
 
-        test_env = make_single_asset_env(test_df, **builder_kwargs)
+        test_env = make_single_asset_env(
+            test_df,
+            env_config={"transaction_cost": 0.0, "lambda_risk": 0.0, "lambda_drawdown": 0.0},
+            **builder_kwargs
+        )
         eq_ppo = run_policy_episode(test_env, agent)
         min_len = len(eq_ppo)
         dates = test_df.index[:min_len]

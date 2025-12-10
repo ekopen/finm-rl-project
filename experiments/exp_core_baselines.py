@@ -72,7 +72,9 @@ def main() -> None:
     train_env = make_single_asset_env(
         train_df, env_config={"transaction_cost": 0.0, "lambda_risk": 0.0, "lambda_drawdown": 0.0}
     )
-    config = make_base_config()
+    # Use very low entropy coefficient to encourage convergence and decision-making
+    # Default is 0.01, which is appropriate for discrete action spaces
+    config = make_base_config(entropy_coef=0.01, epochs=30)
     log_path = str(results_dir / "ppo_train_logs.json")
     agent = train_env_with_config(train_env, config, log_path=log_path)
 

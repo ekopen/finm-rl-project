@@ -67,7 +67,8 @@ def main() -> None:
 
         env_config = {k: v for k, v in cfg.items() if k != "name"}
         train_env = make_single_asset_env(train_df, env_config=env_config)
-        base_config = make_base_config()
+        # Use epochs=30 for better convergence, aligned with baseline experiments
+        base_config = make_base_config(epochs=30)
         log_path = str(results_dir / f"{name}_train_logs.json")
         agent = train_env_with_config(train_env, base_config, log_path=log_path)
 

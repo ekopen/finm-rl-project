@@ -63,9 +63,9 @@ def make_base_config(**overrides) -> PPOConfig:
         value_coef=0.5,
         lr=3e-4,
         max_grad_norm=0.5,
-        update_epochs=10,
+        update_epochs=4,  # Reduced from 10 for more frequent, stable updates
         minibatch_size=64,
-        steps_per_epoch=1024,
+        steps_per_epoch=2048,  # Increased from 1024 for better sample diversity
         epochs=10,
         log_interval=2,
         device="cpu",

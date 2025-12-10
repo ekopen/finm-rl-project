@@ -91,6 +91,9 @@ def train_ppo(
         "value_loss": [],
         "entropy": [],
         "approx_kl": [],
+        "action_0_pct": [],  # Track action distribution to detect collapse
+        "action_1_pct": [],
+        "action_2_pct": [],
     }
 
     for epoch in range(config.epochs):
@@ -98,6 +101,21 @@ def train_ppo(
         stats = agent.update(batch)
 
         mean_reward = float(batch.rewards.mean().item())
+        
+        # Track action distribution to detect policy collapse
+        actions_np = batch.actions.numpy()
+        action_counts = np.bincount(actions_np, minlength=3)
+        action_pcts = action_counts / len(actions_np)
+        
+        # Warn if policy is collapsing (>90% single action)
+        max_action_pct = action_pcts.max()
+        if max_action_pct > 0.9:
+            dominant_action = action_pcts.argmax()
+            print(
+                f"WARNING: Policy may be collapsing! Action {dominant_action} "
+                f"is {max_action_pct*100:.1f}% of all actions",
+                flush=True,
+            )
 
         metrics["epoch"].append(epoch)
         metrics["mean_reward"].append(mean_reward)
@@ -105,6 +123,9 @@ def train_ppo(
         metrics["value_loss"].append(stats.get("value_loss", float("nan")))
         metrics["entropy"].append(stats.get("entropy", float("nan")))
         metrics["approx_kl"].append(stats.get("approx_kl", float("nan")))
+        metrics["action_0_pct"].append(float(action_pcts[0]))
+        metrics["action_1_pct"].append(float(action_pcts[1]))
+        metrics["action_2_pct"].append(float(action_pcts[2]))
 
         if (
             (epoch + 1) % config.log_interval == 0
@@ -117,7 +138,8 @@ def train_ppo(
                 f"policy_loss={metrics['policy_loss'][-1]:.4f}, "
                 f"value_loss={metrics['value_loss'][-1]:.4f}, "
                 f"entropy={metrics['entropy'][-1]:.4f}, "
-                f"approx_kl={metrics['approx_kl'][-1]:.6f}",
+                f"approx_kl={metrics['approx_kl'][-1]:.6f}, "
+                f"actions=[{action_pcts[0]:.2f}, {action_pcts[1]:.2f}, {action_pcts[2]:.2f}]",
                 flush=True,
             )
 

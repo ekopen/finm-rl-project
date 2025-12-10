@@ -30,7 +30,7 @@ class Critic(nn.Module):
     Simple MLP value network V(s).
     """
 
-    def __init__(self, obs_dim: int, hidden_dim: int = 64) -> None:
+    def __init__(self, obs_dim: int, hidden_dim: int = 128) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(obs_dim, hidden_dim),
@@ -39,6 +39,12 @@ class Critic(nn.Module):
             nn.Tanh(),
             nn.Linear(hidden_dim, 1),
         )
+        
+        # Initialize weights with orthogonal initialization
+        for layer in self.net:
+            if isinstance(layer, nn.Linear):
+                nn.init.orthogonal_(layer.weight, gain=1.0)
+                nn.init.constant_(layer.bias, 0.0)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         # obs: (batch_size, obs_dim)

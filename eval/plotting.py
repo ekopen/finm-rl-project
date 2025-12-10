@@ -44,6 +44,9 @@ def plot_equity_curves(
     plt.figure(figsize=(10, 6))
     for label, eq in curves.items():
         eq_arr = np.asarray(eq, dtype=float)
+        # Normalize to start at 1.0 for fair comparison
+        if len(eq_arr) > 0 and eq_arr[0] != 0:
+            eq_arr = eq_arr / eq_arr[0]
         plt.plot(x[: len(eq_arr)], eq_arr, label=label)
 
     plt.xlabel("Time")

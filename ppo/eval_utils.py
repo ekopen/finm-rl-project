@@ -5,13 +5,6 @@ trained policies.
 
 from __future__ import annotations
 
-from typing import Any
-
-import numpy as np
-
-from .ppo_agent import PPOAgent
-
-
 from collections import Counter
 from typing import Any
 
@@ -65,7 +58,9 @@ def run_policy_episode(
 
     while True:
         # 让 agent 给一个动作
-        action, log_prob, value = agent.act(state)
+        # Use deterministic=False to sample from learned policy and make actual trading decisions
+        # This avoids collapsing to a single action during evaluation
+        action, log_prob, value = agent.act(state, deterministic=False)
         actions.append(int(action))
 
         next_state, reward, done, info = env.step(action)

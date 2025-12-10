@@ -93,10 +93,14 @@ def main() -> None:
     train_df, _, _ = load_spy_splits()
 
     # Build training env
-    train_env = make_single_asset_env(train_df)
+    # Explicitly set transaction_cost=0.0 for consistency with other experiments
+    train_env = make_single_asset_env(
+        train_df,
+        env_config={"transaction_cost": 0.0, "lambda_risk": 0.0, "lambda_drawdown": 0.0}
+    )
 
     # Build PPO agent with base config
-    base_config = make_base_config()
+    base_config = make_base_config(epochs=30)  # Use epochs=30 for consistency
     dummy_state = train_env.reset()
     state_dim = dummy_state.shape[0]
     action_dim = train_env.action_space_n
